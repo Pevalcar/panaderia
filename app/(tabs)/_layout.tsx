@@ -1,19 +1,19 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from "expo-router";
+import {
+  FileText,
+  Home,
+  Package,
+  ShoppingBag,
+  Wallet,
+} from "lucide-react-native";
+import { Platform, useColorScheme } from "react-native";
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+const Colors = {
+  active: "#6366F1",
+  inactive: "#94A3B8",
+  background: "#0F172A",
+  border: "#334155",
+};
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -21,37 +21,73 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        tabBarActiveTintColor: Colors.active,
+        tabBarInactiveTintColor: Colors.inactive,
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: Colors.background,
+          borderTopColor: Colors.border,
+          ...Platform.select({
+            ios: {
+              position: "absolute",
+            },
+            default: {},
+          }),
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: "Inicio",
+          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="accounts"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: "Cuentas",
+          tabBarIcon: ({ color }) => <Wallet size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: "Pedidos",
+          tabBarIcon: ({ color }) => <ShoppingBag size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: "Productos",
+          tabBarIcon: ({ color }) => <Package size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: "Docs",
+          tabBarIcon: ({ color }) => <FileText size={24} color={color} />,
+        }}
+      />
+      {/* Pantallas ocultas pero accesibles */}
+      <Tabs.Screen
+        name="transactions"
+        options={{
+          href: null, // Oculta del tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="invoices"
+        options={{
+          href: null, // Oculta del tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="notes"
+        options={{
+          href: null, // Oculta del tab bar
         }}
       />
     </Tabs>
