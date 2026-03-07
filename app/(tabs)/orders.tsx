@@ -21,6 +21,8 @@ import {
 import Toast from "react-native-toast-message";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import { useAuth } from "../../context/AuthContext";
+import { formatCOP } from "../../lib/currency";
+import { smartIncludes } from "../../lib/search";
 import { supabase } from "../../lib/supabase";
 
 type Product = {
@@ -110,6 +112,8 @@ export default function OrdersScreen() {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedOrderToDelete, setSelectedOrderToDelete] = useState<any>(null);
 
   // Order state
   const [customerName, setCustomerName] = useState("");
@@ -308,6 +312,19 @@ export default function OrdersScreen() {
     }
   };
 
+  const requestDeleteOrder = (order: any) => {
+    setSelectedOrderToDelete(order);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!selectedOrderToDelete?.id) return;
+
+    await handleDelete(selectedOrderToDelete.id);
+    setDeleteModalOpen(false);
+    setSelectedOrderToDelete(null);
+  };
+
   const openStatusModal = (id: number, currentStatus: string) => {
     setSelectedOrderId(id);
     setSelectedStatus(currentStatus);
@@ -477,8 +494,8 @@ export default function OrdersScreen() {
     return "bg-green-500/20"; // Más de 3 días
   };
 
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredProducts = products.filter((product) =>
+    smartIncludes(searchQuery, product.name),
   );
 
   const renderItem = ({ item }: { item: any }) => {
@@ -501,21 +518,19 @@ export default function OrdersScreen() {
 
           <View className="flex-row items-center gap-2">
             {item.status !== "completado" && item.status !== "cancelado" && (
-              <>
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  className="p-2"
-                >
-                  <Edit2 size={18} color="#6366F1" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  className="p-2"
-                >
-                  <Trash2 size={18} color="#EF4444" />
-                </TouchableOpacity>
-              </>
+              <TouchableOpacity
+                onPress={() => handleEdit(item)}
+                className="p-2"
+              >
+                <Edit2 size={18} color="#6366F1" />
+              </TouchableOpacity>
             )}
+            <TouchableOpacity
+              onPress={() => requestDeleteOrder(item)}
+              className="p-2"
+            >
+              <Trash2 size={18} color="#EF4444" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -523,15 +538,15 @@ export default function OrdersScreen() {
         <View className="mb-2">
           {item.items?.map((cartItem: CartItem, idx: number) => (
             <Text key={idx} className="text-muted text-sm">
-              • {cartItem.quantity}x {cartItem.product_name} ($
-              {cartItem.subtotal.toFixed(2)})
+              • {cartItem.quantity}x {cartItem.product_name} (
+              {formatCOP(cartItem.subtotal)})
             </Text>
           ))}
         </View>
 
         {/* Total */}
         <Text className="text-primary font-bold text-lg mb-2">
-          Total: ${item.total.toFixed(2)}
+          Total: {formatCOP(item.total)}
         </Text>
 
         {/* Notes */}
@@ -716,7 +731,7 @@ export default function OrdersScreen() {
                           {product.name}
                         </Text>
                         <Text className="text-muted text-sm">
-                          ${product.price.toFixed(2)}
+                          {formatCOP(product.price)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -741,7 +756,7 @@ export default function OrdersScreen() {
                             {item.product_name}
                           </Text>
                           <Text className="text-muted text-sm">
-                            ${item.price.toFixed(2)} c/u
+                            {formatCOP(item.price)} c/u
                           </Text>
                         </View>
 
@@ -769,7 +784,7 @@ export default function OrdersScreen() {
                           </TouchableOpacity>
 
                           <Text className="text-text font-bold ml-2 min-w-[60px] text-right">
-                            ${item.subtotal.toFixed(2)}
+                            {formatCOP(item.subtotal)}
                           </Text>
                         </View>
                       </View>
@@ -778,7 +793,7 @@ export default function OrdersScreen() {
 
                   <View className="bg-primary/10 p-3 rounded-xl mt-2">
                     <Text className="text-text text-xl font-bold text-center">
-                      Total: ${calculateTotal().toFixed(2)}
+                      Total: {formatCOP(calculateTotal())}
                     </Text>
                   </View>
                 </View>
@@ -810,6 +825,45 @@ export default function OrdersScreen() {
       </Modal>
 
       {/* Modal de Cambio de Estado */}
+      <Modal
+        visible={deleteModalOpen}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {
+          setDeleteModalOpen(false);
+          setSelectedOrderToDelete(null);
+        }}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50 px-6">
+          <View className="bg-surface w-full max-w-md rounded-xl p-6 border border-border">
+            <Text className="text-text text-xl font-bold mb-3">
+              Confirmar eliminación
+            </Text>
+            <Text className="text-muted mb-6">
+              {`¿Seguro que deseas eliminar el pedido de ${selectedOrderToDelete?.customer_name ?? "este cliente"}?`}
+            </Text>
+
+            <View className="flex-row justify-end gap-3">
+              <TouchableOpacity
+                onPress={() => {
+                  setDeleteModalOpen(false);
+                  setSelectedOrderToDelete(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-border bg-background"
+              >
+                <Text className="text-text font-semibold">Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmDeleteOrder}
+                className="px-4 py-2 rounded-lg bg-red-600"
+              >
+                <Text className="text-white font-semibold">Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={statusModalOpen}
         animationType="slide"

@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import {
   FileText,
   Home,
@@ -7,6 +7,7 @@ import {
   Wallet,
 } from "lucide-react-native";
 import { Platform, useColorScheme } from "react-native";
+import { useAuth } from "../../context/AuthContext";
 
 const Colors = {
   active: "#6366F1",
@@ -17,6 +18,11 @@ const Colors = {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { username, isLoading } = useAuth();
+
+  if (!isLoading && !username) {
+    return <Redirect href="/login" />;
+  }
 
   return (
     <Tabs

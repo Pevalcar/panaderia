@@ -13,6 +13,7 @@ import {
 import Toast from "react-native-toast-message";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import { useAuth } from "../../context/AuthContext";
+import { formatCOP } from "../../lib/currency";
 import { supabase } from "../../lib/supabase";
 import type { Customer, Invoice } from "../../types";
 
@@ -218,7 +219,7 @@ export default function InvoicesScreen() {
 
       <View className="flex-row items-center justify-between mt-2">
         <Text className="text-foreground text-2xl font-bold">
-          ${item.amount.toLocaleString("es-ES")}
+          {formatCOP(item.amount)}
         </Text>
         <Text className="text-muted text-xs">
           {new Date(item.created_at).toLocaleDateString("es-ES")}
@@ -379,7 +380,7 @@ export default function InvoicesScreen() {
             <View className="bg-surface border border-border rounded-xl p-4 mb-6">
               <Text className="text-muted mb-1">Total:</Text>
               <Text className="text-foreground text-3xl font-bold">
-                ${calculateTotal().toLocaleString("es-ES")}
+                {formatCOP(calculateTotal())}
               </Text>
             </View>
 

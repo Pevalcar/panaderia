@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
+import { formatCOP } from "../../lib/currency";
 import { supabase } from "../../lib/supabase";
 import type { Note } from "../../types";
 
@@ -166,7 +167,7 @@ export default function HomeScreen() {
             <Text className="text-muted ml-2 font-medium">Ventas Hoy</Text>
           </View>
           <Text className="text-2xl font-bold text-text">
-            ${stats.todaySales.toLocaleString()}
+            {formatCOP(stats.todaySales)}
           </Text>
         </View>
 
@@ -176,7 +177,7 @@ export default function HomeScreen() {
             <Text className="text-muted ml-2 font-medium">Insumos/Gastos</Text>
           </View>
           <Text className="text-2xl font-bold text-text">
-            ${stats.todayPurchases.toLocaleString()}
+            {formatCOP(stats.todayPurchases)}
           </Text>
         </View>
 

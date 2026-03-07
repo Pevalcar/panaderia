@@ -1,6 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect } from "react";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { supabase } from "../lib/supabase";
 
 type UserContextType = {
   username: string | null;
@@ -9,63 +11,95 @@ type UserContextType = {
   isLoading: boolean;
 };
 
-const AuthContext = createContext<UserContextType | undefined>(undefined);
+type AuthStore = UserContextType & {
+  setHydrated: (hydrated: boolean) => void;
+  hydrateFromLegacyKey: () => Promise<void>;
+};
+
+const memoryStorage = {
+  getItem: async (_key: string) => null,
+  setItem: async (_key: string, _value: string) => {},
+  removeItem: async (_key: string) => {},
+};
+
+const authStorage = createJSONStorage(() =>
+  typeof window === "undefined" ? memoryStorage : AsyncStorage,
+);
+
+const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      username: null,
+      isLoading: true,
+      setHydrated: (hydrated) => set({ isLoading: !hydrated }),
+      hydrateFromLegacyKey: async () => {
+        const currentUsername = useAuthStore.getState().username;
+        if (currentUsername) return;
+
+        try {
+          const legacyUser = await AsyncStorage.getItem("panaderia_user");
+          if (legacyUser) {
+            set({ username: legacyUser });
+          }
+        } catch (error) {
+          console.error("Failed to migrate legacy auth key", error);
+        }
+      },
+      login: async (name: string) => {
+        try {
+          await supabase
+            .from("profiles")
+            .upsert({ username: name }, { onConflict: "username" });
+          await AsyncStorage.setItem("panaderia_user", name);
+          set({ username: name });
+        } catch (e) {
+          console.error("Failed to login", e);
+          throw e;
+        }
+      },
+      logout: async () => {
+        try {
+          await AsyncStorage.removeItem("panaderia_user");
+          set({ username: null });
+        } catch (e) {
+          console.error("Failed to logout", e);
+        }
+      },
+    }),
+    {
+      name: "panaderia-auth",
+      storage: authStorage,
+      partialize: (state) => ({ username: state.username }),
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error("Failed to hydrate auth store", error);
+        }
+        state?.setHydrated(true);
+      },
+    },
+  ),
+);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [username, setUsername] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const hydrateFromLegacyKey = useAuthStore(
+    (state) => state.hydrateFromLegacyKey,
+  );
 
   useEffect(() => {
-    loadUser();
-  }, []);
-
-  async function loadUser() {
-    try {
-      const storedUser = await AsyncStorage.getItem('panaderia_user');
-      if (storedUser) {
-        setUsername(storedUser);
-      }
-    } catch (e) {
-      console.error('Failed to load user', e);
-    } finally {
-      setIsLoading(false);
+    if (!isLoading) {
+      hydrateFromLegacyKey();
     }
-  }
+  }, [isLoading, hydrateFromLegacyKey]);
 
-  async function login(name: string) {
-    try {
-      await AsyncStorage.setItem('panaderia_user', name);
-      // Optional: Create profile in Supabase if not exists, but for now just local persist + name usage
-      // We can also upsert to profiles table to track users
-      await supabase.from('profiles').upsert({ username: name }, { onConflict: 'username' });
-      
-      setUsername(name);
-    } catch (e) {
-      console.error('Failed to login', e);
-      throw e;
-    }
-  }
-
-  async function logout() {
-    try {
-      await AsyncStorage.removeItem('panaderia_user');
-      setUsername(null);
-    } catch (e) {
-      console.error('Failed to logout', e);
-    }
-  }
-
-  return (
-    <AuthContext.Provider value={{ username, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <>{children}</>;
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+export function useAuth(): UserContextType {
+  const username = useAuthStore((state) => state.username);
+  const login = useAuthStore((state) => state.login);
+  const logout = useAuthStore((state) => state.logout);
+  const isLoading = useAuthStore((state) => state.isLoading);
+
+  return { username, login, logout, isLoading };
 }

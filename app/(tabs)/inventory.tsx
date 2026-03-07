@@ -1,4 +1,11 @@
-import { DollarSign, Package, Plus, Search } from "lucide-react-native";
+import {
+  DollarSign,
+  Package,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   FlatList,
@@ -12,14 +19,26 @@ import {
 import Toast from "react-native-toast-message";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import { useAuth } from "../../context/AuthContext";
+import { formatCOP } from "../../lib/currency";
+import { smartIncludes } from "../../lib/search";
 import { supabase } from "../../lib/supabase";
+
+type Product = {
+  id: number;
+  name: string;
+  price: number;
+  description: string | null;
+};
 
 export default function InventoryScreen() {
   const { username } = useAuth();
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // New product form
   const [name, setName] = useState("");
@@ -42,7 +61,27 @@ export default function InventoryScreen() {
     setLoading(false);
   };
 
-  const handleAddProduct = async () => {
+  const resetForm = () => {
+    setName("");
+    setPrice("");
+    setDescription("");
+    setEditingProductId(null);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditingProductId(product.id);
+    setName(product.name ?? "");
+    setPrice(String(product.price ?? ""));
+    setDescription(product.description ?? "");
+    setIsModalOpen(true);
+  };
+
+  const handleSaveProduct = async () => {
     if (!name || !price) {
       Toast.show({
         type: "error",
@@ -52,12 +91,35 @@ export default function InventoryScreen() {
       return;
     }
 
-    const { error } = await supabase.from("products").insert({
-      name,
-      price: parseFloat(price),
-      description,
+    const parsedPrice = Number.parseFloat(price);
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      Toast.show({
+        type: "error",
+        text1: "Precio inválido",
+        text2: "Ingresa un precio mayor a 0",
+      });
+      return;
+    }
+
+    const productPayload = {
+      name: name.trim(),
+      price: parsedPrice,
+      description: description.trim(),
       added_by: username,
-    });
+    };
+
+    let error: Error | null = null;
+
+    if (editingProductId) {
+      const response = await supabase
+        .from("products")
+        .update(productPayload)
+        .eq("id", editingProductId);
+      error = response.error;
+    } else {
+      const response = await supabase.from("products").insert(productPayload);
+      error = response.error;
+    }
 
     if (error) {
       Toast.show({
@@ -67,22 +129,52 @@ export default function InventoryScreen() {
       });
     } else {
       setIsModalOpen(false);
-      setName("");
-      setPrice("");
-      setDescription("");
+      resetForm();
       fetchProducts();
       Toast.show({
         type: "success",
-        text1: "Producto agregado",
-        text2: "Ahora puedes usarlo en pedidos y ventas",
+        text1: editingProductId ? "Producto actualizado" : "Producto agregado",
+        text2: editingProductId
+          ? "Los cambios fueron guardados"
+          : "Ahora puedes usarlo en pedidos y ventas",
       });
     }
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.description?.toLowerCase().includes(search.toLowerCase()),
+  const requestDeleteProduct = (product: Product) => {
+    setProductToDelete(product);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", productToDelete.id);
+
+    if (error) {
+      Toast.show({
+        type: "error",
+        text1: "No se pudo eliminar",
+        text2: error.message,
+      });
+      return;
+    }
+
+    setIsDeleteModalOpen(false);
+    setProductToDelete(null);
+    fetchProducts();
+    Toast.show({
+      type: "success",
+      text1: "Producto eliminado",
+      text2: "La lista se actualizó correctamente",
+    });
+  };
+
+  const filteredProducts = products.filter((product) =>
+    smartIncludes(search, product.name, product.description),
   );
 
   const renderSkeleton = () => (
@@ -105,7 +197,7 @@ export default function InventoryScreen() {
     </View>
   );
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: Product }) => (
     <View className="bg-surface p-4 rounded-xl border border-border mb-3">
       <View className="flex-row justify-between items-start">
         <View className="flex-1 mr-3">
@@ -115,8 +207,28 @@ export default function InventoryScreen() {
           )}
         </View>
         <View className="bg-green-600 px-3 py-1 rounded-lg">
-          <Text className="text-white font-bold text-base">${item.price}</Text>
+          <Text className="text-white font-bold text-base">
+            {formatCOP(item.price)}
+          </Text>
         </View>
+      </View>
+
+      <View className="flex-row justify-end mt-4 gap-2">
+        <TouchableOpacity
+          onPress={() => openEditModal(item)}
+          className="bg-indigo-600 px-3 py-2 rounded-lg flex-row items-center"
+        >
+          <Pencil color="white" size={14} />
+          <Text className="text-white font-semibold ml-2">Editar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => requestDeleteProduct(item)}
+          className="bg-red-600 px-3 py-2 rounded-lg flex-row items-center"
+        >
+          <Trash2 color="white" size={14} />
+          <Text className="text-white font-semibold ml-2">Eliminar</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -126,7 +238,7 @@ export default function InventoryScreen() {
       <View className="p-4 pt-12 flex-row justify-between items-center border-b border-border bg-surface">
         <Text className="text-2xl font-bold text-text">Productos</Text>
         <TouchableOpacity
-          onPress={() => setIsModalOpen(true)}
+          onPress={openCreateModal}
           className="bg-primary p-2 rounded-full"
         >
           <Plus color="white" size={24} />
@@ -179,15 +291,23 @@ export default function InventoryScreen() {
         animationType="slide"
         transparent={true}
         visible={isModalOpen}
-        onRequestClose={() => setIsModalOpen(false)}
+        onRequestClose={() => {
+          setIsModalOpen(false);
+          resetForm();
+        }}
       >
         <View className="flex-1 justify-end bg-black/50">
           <View className="bg-surface rounded-t-3xl p-6 h-[75%]">
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-2xl font-bold text-text">
-                Nuevo Producto
+                {editingProductId ? "Editar Producto" : "Nuevo Producto"}
               </Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsModalOpen(false);
+                  resetForm();
+                }}
+              >
                 <Text className="text-muted text-lg">✕</Text>
               </TouchableOpacity>
             </View>
@@ -228,13 +348,53 @@ export default function InventoryScreen() {
             />
 
             <TouchableOpacity
-              onPress={handleAddProduct}
+              onPress={handleSaveProduct}
               className="bg-primary p-4 rounded-xl items-center mt-auto mb-8"
             >
               <Text className="text-white text-lg font-bold">
-                Agregar Producto
+                {editingProductId ? "Guardar Cambios" : "Agregar Producto"}
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isDeleteModalOpen}
+        onRequestClose={() => {
+          setIsDeleteModalOpen(false);
+          setProductToDelete(null);
+        }}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50 px-6">
+          <View className="w-full max-w-md bg-surface rounded-2xl p-6 border border-border">
+            <Text className="text-xl font-bold text-text mb-3">
+              Confirmar eliminación
+            </Text>
+            <Text className="text-muted mb-6">
+              {`¿Seguro que deseas eliminar \"${productToDelete?.name ?? ""}\"?`}
+            </Text>
+
+            <View className="flex-row justify-end gap-3">
+              <TouchableOpacity
+                onPress={() => {
+                  setIsDeleteModalOpen(false);
+                  setProductToDelete(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-border bg-background"
+              >
+                <Text className="text-text font-semibold">Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDeleteProduct}
+                className="px-4 py-2 rounded-lg bg-red-600"
+              >
+                <Text className="text-white font-semibold">Eliminar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

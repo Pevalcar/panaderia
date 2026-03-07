@@ -1,0 +1,12 @@
+[    4518ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/supplies?select=*&quantity=lt.10:0
+[    4722ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/invoices?select=*&status=eq.pendiente:0
+[    4922ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/customers?select=id:0
+[    5132ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/notes?select=*&is_read=eq.false&category=in.%28urgente%2Cimportante%29&order=created_at.desc&limit=1:0
+[   21281ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/supplies?select=*&quantity=lt.10:0
+[   21458ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/invoices?select=*&status=eq.pendiente:0
+[   21643ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/customers?select=id:0
+[   21822ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/notes?select=*&is_read=eq.false&category=in.%28urgente%2Cimportante%29&order=created_at.desc&limit=1:0
+[   24327ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/supplies?select=*&quantity=lt.10:0
+[   24498ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/invoices?select=*&status=eq.pendiente:0
+[   24671ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/customers?select=id:0
+[   24861ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://upsmmiajfydjqxhwqoae.supabase.co/rest/v1/notes?select=*&is_read=eq.false&category=in.%28urgente%2Cimportante%29&order=created_at.desc&limit=1:0

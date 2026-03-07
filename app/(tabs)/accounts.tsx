@@ -1,7 +1,16 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { decode } from "base64-arraybuffer";
 import * as ImagePicker from "expo-image-picker";
-import { Camera, Edit2, Minus, Plus, Search, Trash2, X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import {
+  Camera,
+  Edit2,
+  Minus,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Image,
@@ -16,6 +25,8 @@ import {
 import Toast from "react-native-toast-message";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import { useAuth } from "../../context/AuthContext";
+import { formatCOP } from "../../lib/currency";
+import { smartIncludes } from "../../lib/search";
 import { supabase } from "../../lib/supabase";
 
 type Product = {
@@ -46,7 +57,7 @@ export default function AccountsScreen() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<string | null>(null);
-  
+
   // Product selection state
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -56,27 +67,91 @@ export default function AccountsScreen() {
     fetchProducts();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, []),
+  );
+
+  useEffect(() => {
+    if (isModalOpen && type === "venta" && saleType === "productos") {
+      fetchProducts();
+    }
+  }, [isModalOpen, type, saleType]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("products-live-accounts")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        () => {
+          fetchProducts();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const fetchData = async () => {
     setLoading(true);
-    const { data: transactions, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
+    try {
+      const { data: transactions, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    if (error) console.error(error);
-    else setData(transactions || []);
-    setLoading(false);
+      if (error) {
+        Toast.show({
+          type: "error",
+          text1: "No se pudieron cargar movimientos",
+          text2: error.message,
+        });
+        setData([]);
+        return;
+      }
+
+      setData(transactions || []);
+    } catch {
+      Toast.show({
+        type: "error",
+        text1: "Error de conexión al cargar movimientos",
+      });
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, price")
-      .order("name", { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, price")
+        .order("name", { ascending: true });
 
-    if (error) console.error(error);
-    else setProducts(data || []);
+      if (error) {
+        Toast.show({
+          type: "error",
+          text1: "No se pudieron cargar productos",
+          text2: error.message,
+        });
+        setProducts([]);
+        return;
+      }
+
+      setProducts(data || []);
+    } catch {
+      Toast.show({
+        type: "error",
+        text1: "Error de conexión al cargar productos",
+      });
+      setProducts([]);
+    }
   };
 
   const pickImage = async () => {
@@ -116,7 +191,9 @@ export default function AccountsScreen() {
             return;
           }
 
-          const { data: { publicUrl } } = supabase.storage.from("images").getPublicUrl(fileName);
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("images").getPublicUrl(fileName);
           resolve(publicUrl);
         };
       });
@@ -151,9 +228,13 @@ export default function AccountsScreen() {
       setCart(
         cart.map((item) =>
           item.product_id === productId
-            ? { ...item, quantity: newQuantity, subtotal: item.price * newQuantity }
-            : item
-        )
+            ? {
+                ...item,
+                quantity: newQuantity,
+                subtotal: item.price * newQuantity,
+              }
+            : item,
+        ),
       );
     }
   };
@@ -190,7 +271,10 @@ export default function AccountsScreen() {
       imageUrl = await uploadImage(image);
     }
 
-    const finalAmount = type === "venta" && saleType === "productos" ? calculateTotal() : parseFloat(amount);
+    const finalAmount =
+      type === "venta" && saleType === "productos"
+        ? calculateTotal()
+        : parseFloat(amount);
 
     const transactionData: any = {
       type,
@@ -214,14 +298,20 @@ export default function AccountsScreen() {
         .eq("id", editingId);
 
       if (error) {
-        Toast.show({ type: "error", text1: "Error al actualizar", text2: error.message });
+        Toast.show({
+          type: "error",
+          text1: "Error al actualizar",
+          text2: error.message,
+        });
       } else {
         Toast.show({ type: "success", text1: "Venta actualizada" });
         resetForm();
         fetchData();
       }
     } else {
-      const { error } = await supabase.from("transactions").insert(transactionData);
+      const { error } = await supabase
+        .from("transactions")
+        .insert(transactionData);
 
       if (error) {
         Toast.show({ type: "error", text1: "Error", text2: error.message });
@@ -235,24 +325,24 @@ export default function AccountsScreen() {
 
   const handleEdit = (item: any) => {
     if (item.type !== "venta") return;
-    
+
     setEditingId(item.id);
     setType(item.type);
     setSaleType(item.sale_type || "otros");
     setAmount(item.amount.toString());
     setDescription(item.description || "");
     setImage(item.image_url);
-    
+
     if (item.sale_type === "productos" && item.items) {
       setCart(item.items);
     }
-    
+
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: number) => {
     const { error } = await supabase.from("transactions").delete().eq("id", id);
-    
+
     if (error) {
       Toast.show({ type: "error", text1: "Error al eliminar" });
     } else {
@@ -273,48 +363,60 @@ export default function AccountsScreen() {
     setSearchQuery("");
   };
 
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProducts = products.filter((product) =>
+    smartIncludes(searchQuery, product.name),
   );
 
   const renderItem = ({ item }: { item: any }) => (
     <View className="bg-surface p-4 rounded-xl border border-border mb-3">
       <View className="flex-row justify-between items-start">
         <View className="flex-1">
-          <Text className={`font-bold text-lg ${item.type === "venta" ? "text-green-500" : "text-pink-500"}`}>
-            {item.type === "venta" ? "+" : "-"} ${item.amount.toFixed(2)}
+          <Text
+            className={`font-bold text-lg ${item.type === "venta" ? "text-green-500" : "text-pink-500"}`}
+          >
+            {item.type === "venta" ? "+" : "-"} {formatCOP(item.amount)}
           </Text>
-          
+
           {item.sale_type === "productos" && item.items && (
             <View className="mt-2">
               {item.items.map((cartItem: CartItem, idx: number) => (
                 <Text key={idx} className="text-muted text-xs">
-                  • {cartItem.quantity}x {cartItem.product_name} (${cartItem.subtotal.toFixed(2)})
+                  • {cartItem.quantity}x {cartItem.product_name} (
+                  {formatCOP(cartItem.subtotal)})
                 </Text>
               ))}
             </View>
           )}
-          
+
           {item.description && (
             <Text className="text-muted text-sm mt-1">{item.description}</Text>
           )}
-          
+
           <Text className="text-xs text-border mt-1">
             {new Date(item.created_at).toLocaleDateString()} - {item.added_by}
           </Text>
         </View>
-        
+
         <View className="flex-row items-center gap-2">
           {item.image_url && (
-            <Image source={{ uri: item.image_url }} className="w-12 h-12 rounded-lg bg-gray-600" />
+            <Image
+              source={{ uri: item.image_url }}
+              className="w-12 h-12 rounded-lg bg-gray-600"
+            />
           )}
-          
+
           {item.type === "venta" && (
             <>
-              <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
+              <TouchableOpacity
+                onPress={() => handleEdit(item)}
+                className="p-2"
+              >
                 <Edit2 size={18} color="#6366F1" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item.id)} className="p-2">
+              <TouchableOpacity
+                onPress={() => handleDelete(item.id)}
+                className="p-2"
+              >
                 <Trash2 size={18} color="#EF4444" />
               </TouchableOpacity>
             </>
@@ -327,7 +429,10 @@ export default function AccountsScreen() {
   const renderSkeleton = () => (
     <View>
       {[1, 2, 3, 4, 5].map((i) => (
-        <View key={i} className="bg-surface p-4 rounded-xl border border-border mb-3">
+        <View
+          key={i}
+          className="bg-surface p-4 rounded-xl border border-border mb-3"
+        >
           <SkeletonLoader width={100} height={24} />
           <View className="mt-2" />
           <SkeletonLoader width="80%" height={16} />
@@ -340,7 +445,13 @@ export default function AccountsScreen() {
     <View className="flex-1 bg-background">
       <View className="p-4 pt-12 flex-row justify-between items-center border-b border-border bg-surface">
         <Text className="text-2xl font-bold text-text">Cuentas</Text>
-        <TouchableOpacity onPress={() => { resetForm(); setIsModalOpen(true); }} className="bg-primary p-2 rounded-full">
+        <TouchableOpacity
+          onPress={() => {
+            resetForm();
+            setIsModalOpen(true);
+          }}
+          className="bg-primary p-2 rounded-full"
+        >
           <Plus color="white" size={24} />
         </TouchableOpacity>
       </View>
@@ -350,13 +461,30 @@ export default function AccountsScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={{ padding: 16 }}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} tintColor="#6366F1" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={fetchData}
+            tintColor="#6366F1"
+          />
+        }
         ListEmptyComponent={
-          loading ? renderSkeleton() : <Text className="text-muted text-center mt-8">No hay movimientos recientes.</Text>
+          loading ? (
+            renderSkeleton()
+          ) : (
+            <Text className="text-muted text-center mt-8">
+              No hay movimientos recientes.
+            </Text>
+          )
         }
       />
 
-      <Modal animationType="slide" transparent={true} visible={isModalOpen} onRequestClose={resetForm}>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalOpen}
+        onRequestClose={resetForm}
+      >
         <View className="flex-1 justify-end bg-black/50">
           <View className="bg-surface rounded-t-3xl p-6 h-[90%]">
             <View className="flex-row justify-between items-center mb-6">
@@ -375,13 +503,21 @@ export default function AccountsScreen() {
                   onPress={() => setType("venta")}
                   className={`flex-1 p-3 rounded-lg items-center ${type === "venta" ? "bg-green-600" : ""}`}
                 >
-                  <Text className={`font-bold ${type === "venta" ? "text-white" : "text-muted"}`}>Venta</Text>
+                  <Text
+                    className={`font-bold ${type === "venta" ? "text-white" : "text-muted"}`}
+                  >
+                    Venta
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setType("compra")}
                   className={`flex-1 p-3 rounded-lg items-center ${type === "compra" ? "bg-pink-600" : ""}`}
                 >
-                  <Text className={`font-bold ${type === "compra" ? "text-white" : "text-muted"}`}>Gasto / Compra</Text>
+                  <Text
+                    className={`font-bold ${type === "compra" ? "text-white" : "text-muted"}`}
+                  >
+                    Gasto / Compra
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -392,7 +528,9 @@ export default function AccountsScreen() {
                     onPress={() => setSaleType("productos")}
                     className={`flex-1 p-3 rounded-lg items-center ${saleType === "productos" ? "bg-primary" : ""}`}
                   >
-                    <Text className={`font-bold ${saleType === "productos" ? "text-white" : "text-muted"}`}>
+                    <Text
+                      className={`font-bold ${saleType === "productos" ? "text-white" : "text-muted"}`}
+                    >
                       Productos
                     </Text>
                   </TouchableOpacity>
@@ -400,7 +538,11 @@ export default function AccountsScreen() {
                     onPress={() => setSaleType("otros")}
                     className={`flex-1 p-3 rounded-lg items-center ${saleType === "otros" ? "bg-primary" : ""}`}
                   >
-                    <Text className={`font-bold ${saleType === "otros" ? "text-white" : "text-muted"}`}>Otros</Text>
+                    <Text
+                      className={`font-bold ${saleType === "otros" ? "text-white" : "text-muted"}`}
+                    >
+                      Otros
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -433,8 +575,12 @@ export default function AccountsScreen() {
                             }}
                             className="p-3 border-b border-border"
                           >
-                            <Text className="text-text font-medium">{product.name}</Text>
-                            <Text className="text-muted text-sm">${product.price.toFixed(2)}</Text>
+                            <Text className="text-text font-medium">
+                              {product.name}
+                            </Text>
+                            <Text className="text-muted text-sm">
+                              {formatCOP(product.price)}
+                            </Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -444,43 +590,64 @@ export default function AccountsScreen() {
                   {/* Carrito */}
                   {cart.length > 0 && (
                     <View className="mb-4">
-                      <Text className="text-text font-bold mb-2">Productos seleccionados:</Text>
+                      <Text className="text-text font-bold mb-2">
+                        Productos seleccionados:
+                      </Text>
                       {cart.map((item) => (
-                        <View key={item.product_id} className="bg-background p-3 rounded-xl border border-border mb-2">
+                        <View
+                          key={item.product_id}
+                          className="bg-background p-3 rounded-xl border border-border mb-2"
+                        >
                           <View className="flex-row justify-between items-center">
                             <View className="flex-1">
-                              <Text className="text-text font-medium">{item.product_name}</Text>
-                              <Text className="text-muted text-sm">${item.price.toFixed(2)} c/u</Text>
+                              <Text className="text-text font-medium">
+                                {item.product_name}
+                              </Text>
+                              <Text className="text-muted text-sm">
+                                {formatCOP(item.price)} c/u
+                              </Text>
                             </View>
-                            
+
                             <View className="flex-row items-center gap-2">
                               <TouchableOpacity
-                                onPress={() => updateQuantity(item.product_id, item.quantity - 1)}
+                                onPress={() =>
+                                  updateQuantity(
+                                    item.product_id,
+                                    item.quantity - 1,
+                                  )
+                                }
                                 className="bg-surface p-2 rounded-lg border border-border"
                               >
                                 <Minus size={16} color="#F87171" />
                               </TouchableOpacity>
-                              
-                              <Text className="text-text font-bold min-w-[30px] text-center">{item.quantity}</Text>
-                              
+
+                              <Text className="text-text font-bold min-w-[30px] text-center">
+                                {item.quantity}
+                              </Text>
+
                               <TouchableOpacity
-                                onPress={() => updateQuantity(item.product_id, item.quantity + 1)}
+                                onPress={() =>
+                                  updateQuantity(
+                                    item.product_id,
+                                    item.quantity + 1,
+                                  )
+                                }
                                 className="bg-surface p-2 rounded-lg border border-border"
                               >
                                 <Plus size={16} color="#34D399" />
                               </TouchableOpacity>
-                              
+
                               <Text className="text-text font-bold ml-2 min-w-[60px] text-right">
-                                ${item.subtotal.toFixed(2)}
+                                {formatCOP(item.subtotal)}
                               </Text>
                             </View>
                           </View>
                         </View>
                       ))}
-                      
+
                       <View className="bg-primary/10 p-3 rounded-xl mt-2">
                         <Text className="text-text text-xl font-bold text-center">
-                          Total: ${calculateTotal().toFixed(2)}
+                          Total: {formatCOP(calculateTotal())}
                         </Text>
                       </View>
                     </View>
@@ -499,7 +666,8 @@ export default function AccountsScreen() {
               )}
 
               {/* VENTA OTROS o COMPRA/GASTO */}
-              {(type === "compra" || (type === "venta" && saleType === "otros")) && (
+              {(type === "compra" ||
+                (type === "venta" && saleType === "otros")) && (
                 <>
                   <Text className="text-text mb-2">Monto</Text>
                   <TextInput
@@ -514,7 +682,11 @@ export default function AccountsScreen() {
                   <Text className="text-text mb-2">Descripción</Text>
                   <TextInput
                     className="bg-background text-text text-base p-4 rounded-xl border border-border mb-4"
-                    placeholder={type === "venta" ? "¿Qué se vendió?" : "Detalles del gasto..."}
+                    placeholder={
+                      type === "venta"
+                        ? "¿Qué se vendió?"
+                        : "Detalles del gasto..."
+                    }
                     placeholderTextColor="#475569"
                     value={description}
                     onChangeText={setDescription}
@@ -528,16 +700,25 @@ export default function AccountsScreen() {
                 className="flex-row items-center justify-center border-2 border-dashed border-border p-6 rounded-xl mb-6"
               >
                 {image ? (
-                  <Image source={{ uri: image }} className="w-full h-32 rounded-lg" resizeMode="cover" />
+                  <Image
+                    source={{ uri: image }}
+                    className="w-full h-32 rounded-lg"
+                    resizeMode="cover"
+                  />
                 ) : (
                   <>
                     <Camera color="#94A3B8" size={24} />
-                    <Text className="text-muted ml-2">Agregar Foto (Recibo/Factura)</Text>
+                    <Text className="text-muted ml-2">
+                      Agregar Foto (Recibo/Factura)
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={handleCreate} className="bg-primary p-4 rounded-xl items-center mb-8">
+              <TouchableOpacity
+                onPress={handleCreate}
+                className="bg-primary p-4 rounded-xl items-center mb-8"
+              >
                 <Text className="text-white text-lg font-bold">
                   {editingId ? "Actualizar" : "Guardar"}
                 </Text>
