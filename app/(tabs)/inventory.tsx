@@ -3,6 +3,7 @@ import {
   Package,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
 } from "lucide-react-native";
@@ -237,15 +238,26 @@ export default function InventoryScreen() {
     <View className="flex-1 bg-background">
       <View className="p-4 pt-12 flex-row justify-between items-center border-b border-border bg-surface">
         <Text className="text-2xl font-bold text-text">Productos</Text>
-        <TouchableOpacity
-          onPress={openCreateModal}
-          className="bg-primary p-2 rounded-full"
-        >
-          <Plus color="white" size={24} />
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity
+            onPress={async () => {
+              await fetchProducts();
+              Toast.show({ type: "success", text1: "Productos actualizados" });
+            }}
+            className="bg-surface p-2 rounded-full border border-border"
+          >
+            <RefreshCw color="#94A3B8" size={20} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={openCreateModal}
+            className="bg-primary p-2 rounded-full"
+          >
+            <Plus color="white" size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View className="p-4">
+      <View className="p-4 flex-1">
         <View className="bg-surface p-3 rounded-xl border border-border flex-row items-center mb-4">
           <Search size={20} color="#94A3B8" />
           <TextInput
@@ -258,9 +270,11 @@ export default function InventoryScreen() {
         </View>
 
         <FlatList
+          style={{ flex: 1 }}
           data={filteredProducts}
           renderItem={renderItem}
           keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={{ paddingBottom: 20 }}
           refreshControl={
             <RefreshControl
               refreshing={loading}

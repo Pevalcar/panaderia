@@ -6,6 +6,7 @@ import {
   Edit2,
   Minus,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
   X,
@@ -445,15 +446,26 @@ export default function AccountsScreen() {
     <View className="flex-1 bg-background">
       <View className="p-4 pt-12 flex-row justify-between items-center border-b border-border bg-surface">
         <Text className="text-2xl font-bold text-text">Cuentas</Text>
-        <TouchableOpacity
-          onPress={() => {
-            resetForm();
-            setIsModalOpen(true);
-          }}
-          className="bg-primary p-2 rounded-full"
-        >
-          <Plus color="white" size={24} />
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity
+            onPress={async () => {
+              await Promise.all([fetchData(), fetchProducts()]);
+              Toast.show({ type: "success", text1: "Datos actualizados" });
+            }}
+            className="bg-surface p-2 rounded-full border border-border"
+          >
+            <RefreshCw color="#94A3B8" size={20} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              resetForm();
+              setIsModalOpen(true);
+            }}
+            className="bg-primary p-2 rounded-full"
+          >
+            <Plus color="white" size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList

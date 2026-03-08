@@ -1,6 +1,6 @@
 import { decode } from "base64-arraybuffer";
 import * as ImagePicker from "expo-image-picker";
-import { Camera, Plus, X } from "lucide-react-native";
+import { Camera, Plus, RefreshCw, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   FlatList,
@@ -187,12 +187,26 @@ export default function TransactionsScreen() {
     <View className="flex-1 bg-background">
       <View className="p-4 pt-12 flex-row justify-between items-center border-b border-border bg-surface">
         <Text className="text-2xl font-bold text-text">Cuentas</Text>
-        <TouchableOpacity
-          onPress={() => setIsModalOpen(true)}
-          className="bg-primary p-2 rounded-full"
-        >
-          <Plus color="white" size={24} />
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity
+            onPress={async () => {
+              await fetchData();
+              Toast.show({
+                type: "success",
+                text1: "Movimientos actualizados",
+              });
+            }}
+            className="bg-surface p-2 rounded-full border border-border"
+          >
+            <RefreshCw color="#94A3B8" size={20} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setIsModalOpen(true)}
+            className="bg-primary p-2 rounded-full"
+          >
+            <Plus color="white" size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList

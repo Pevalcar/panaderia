@@ -1,4 +1,4 @@
-import { FileText, Plus } from "lucide-react-native";
+import { FileText, Plus, RefreshCw } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   FlatList,
@@ -232,9 +232,18 @@ export default function InvoicesScreen() {
     <View className="flex-1 bg-background">
       {/* Header */}
       <View className="bg-surface border-b border-border px-6 pt-16 pb-4">
-        <Text className="text-foreground text-3xl font-bold mb-4">
-          Facturas
-        </Text>
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-foreground text-3xl font-bold">Facturas</Text>
+          <TouchableOpacity
+            onPress={async () => {
+              await Promise.all([fetchInvoices(), fetchCustomers()]);
+              Toast.show({ type: "success", text1: "Facturas actualizadas" });
+            }}
+            className="bg-surface-elevated p-2 rounded-full border border-border"
+          >
+            <RefreshCw color="#94A3B8" size={20} />
+          </TouchableOpacity>
+        </View>
 
         {/* Filters */}
         <View className="flex-row gap-2">
