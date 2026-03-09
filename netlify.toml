@@ -1,6 +1,6 @@
 [build]
-  command = "cd panaderia_astro_app && pnpm build"
-  publish = "panaderia_astro_app/dist"
+  command = "pnpm build"
+  publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
