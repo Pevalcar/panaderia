@@ -1,0 +1,63 @@
+---
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Login | Panadería</title>
+  </head>
+  <body>
+    <main class="grid min-h-screen place-items-center px-4">
+      <section class="panel-card w-full max-w-md">
+        <h1 class="text-2xl font-semibold text-text">Iniciar sesión</h1>
+        <p class="mt-2 text-sm text-muted">
+          Ingresa tu usuario para registrar tus acciones en el sistema.
+        </p>
+
+        <form class="mt-5" id="login-form">
+          <label class="mb-4 grid gap-2 text-sm text-muted" for="username">
+            Usuario
+            <input
+              class="rounded-lg border border-border bg-background px-3 py-2 text-text outline-none focus:border-primary"
+              id="username"
+              name="username"
+              type="text"
+              autocomplete="username"
+              required
+            />
+          </label>
+          <button
+            class="w-full rounded-lg bg-primary px-3 py-2 font-medium text-white hover:bg-primary/90"
+            type="submit">Entrar</button
+          >
+        </form>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById("login-form");
+      const input = document.getElementById("username");
+
+      const existing = window.localStorage.getItem("panaderia_username");
+      if (existing) {
+        window.location.replace("/inicio");
+      }
+
+      form?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value =
+          input instanceof HTMLInputElement ? input.value.trim() : "";
+        if (!value) {
+          return;
+        }
+
+        window.localStorage.setItem("panaderia_username", value);
+        window.location.replace("/inicio");
+      });
+    </script>
+  </body>
+</html>

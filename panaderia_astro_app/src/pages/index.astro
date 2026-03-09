@@ -1,0 +1,18 @@
+---
+
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Panadería</title>
+  </head>
+  <body>
+    <script>
+      const username = window.localStorage.getItem("panaderia_username");
+      window.location.replace(username ? "/inicio" : "/login");
+    </script>
+  </body>
+</html>

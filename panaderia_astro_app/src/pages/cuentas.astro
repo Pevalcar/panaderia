@@ -1,0 +1,8 @@
+---
+import CuentasIsland from "../components/islands/CuentasIsland.tsx";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout title="Cuentas" currentPath="/cuentas">
+  <CuentasIsland client:load />
+</AppLayout>

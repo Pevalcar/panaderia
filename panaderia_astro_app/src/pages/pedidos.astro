@@ -1,0 +1,8 @@
+---
+import PedidosIsland from "../components/islands/PedidosIsland.tsx";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout title="Pedidos" currentPath="/pedidos">
+  <PedidosIsland client:load />
+</AppLayout>

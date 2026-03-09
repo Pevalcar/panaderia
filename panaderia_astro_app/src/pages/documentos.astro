@@ -1,0 +1,8 @@
+---
+import DocumentosIsland from "../components/islands/DocumentosIsland.tsx";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout title="Documentos" currentPath="/documentos">
+  <DocumentosIsland client:load />
+</AppLayout>

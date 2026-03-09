@@ -1,0 +1,8 @@
+---
+import InventarioIsland from "../components/islands/InventarioIsland.tsx";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout title="Inventario" currentPath="/inventario">
+  <InventarioIsland client:load />
+</AppLayout>

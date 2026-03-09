@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-primary: #6366f1;
+  --color-secondary: #ec4899;
+  --color-accent: #8b5cf6;
+  --color-text: #f8fafc;
+  --color-muted: #94a3b8;
+  --color-border: #334155;
+}
+
+@layer base {
+  html {
+    height: 100%;
+  }
+
+  body {
+    @apply m-0 bg-background text-text antialiased;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    scrollbar-gutter: stable;
+    min-height: 100dvh;
+    overflow-y: scroll;
+  }
+
+  a {
+    @apply no-underline text-inherit;
+  }
+
+  * {
+    @apply box-border;
+  }
+}
+
+@layer components {
+  .panel-card {
+    @apply rounded-xl border border-border bg-surface p-4;
+  }
+
+  .menu-link {
+    @apply inline-flex h-10 items-center rounded-lg border border-transparent px-3 text-sm leading-none text-muted transition;
+  }
+
+  .menu-link:hover {
+    @apply border-border bg-background text-text;
+  }
+
+  .menu-link.active {
+    @apply border-primary/30 bg-primary/20 text-primary;
+  }
+
+  .mobile-overlay {
+    @apply fixed inset-0 z-40 hidden bg-black/50;
+  }
+
+  .mobile-overlay.open {
+    @apply block;
+  }
+
+  .mobile-sidebar {
+    @apply fixed top-0 left-0 z-50 flex h-full w-[82vw] max-w-[290px] -translate-x-full flex-col gap-2 border-r border-border bg-surface p-4 transition-transform;
+  }
+
+  .mobile-sidebar.open {
+    @apply translate-x-0;
+  }
+}

@@ -1,0 +1,8 @@
+---
+import InicioDashboardIsland from "../components/islands/InicioDashboardIsland.tsx";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout title="Inicio" currentPath="/inicio">
+  <InicioDashboardIsland client:load />
+</AppLayout>

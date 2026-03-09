@@ -1,0 +1,161 @@
+---
+import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
+
+type NavItem = {
+  href: string;
+  label: string;
+};
+
+type Props = {
+  title: string;
+  currentPath: string;
+};
+
+const { title, currentPath } = Astro.props;
+
+const navItems: NavItem[] = [
+  { href: "/inicio", label: "Inicio" },
+  { href: "/cierres", label: "Cierres" },
+  { href: "/cuentas", label: "Cuentas" },
+  { href: "/pedidos", label: "Pedidos" },
+  { href: "/inventario", label: "Inventario" },
+  { href: "/documentos", label: "Documentos" },
+];
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} | Panadería</title>
+    <ClientRouter />
+  </head>
+  <body>
+    <div class="min-h-dvh flex flex-col bg-background">
+      <header
+        transition:persist
+        class="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur"
+      >
+        <div
+          class="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4"
+        >
+          <div class="flex items-center gap-3">
+            <button
+              class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text md:hidden"
+              id="mobile-open"
+              type="button">Menú</button
+            >
+            <a class="text-lg font-semibold text-text" href="/inicio"
+              >Panadería</a
+            >
+          </div>
+
+          <nav
+            class="hidden items-center gap-2 md:flex"
+            aria-label="Navegación principal"
+          >
+            {
+              navItems.map((item) => (
+                <a
+                  class:list={[
+                    "menu-link",
+                    currentPath === item.href && "active",
+                  ]}
+                  data-nav-link
+                  href={item.href}
+                >
+                  {item.label}
+                </a>
+              ))
+            }
+          </nav>
+
+          <button
+            class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted hover:text-text"
+            id="logout-btn"
+            type="button">Salir</button
+          >
+        </div>
+      </header>
+
+      <aside
+        class="mobile-sidebar"
+        id="mobile-sidebar"
+        aria-label="Menú lateral móvil"
+      >
+        {
+          navItems.map((item) => (
+            <a
+              class:list={["menu-link", currentPath === item.href && "active"]}
+              data-nav-link
+              href={item.href}
+            >
+              {item.label}
+            </a>
+          ))
+        }
+      </aside>
+      <div class="mobile-overlay" id="mobile-overlay"></div>
+
+      <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-4">
+        <slot />
+      </main>
+    </div>
+
+    <script>
+      const username = window.localStorage.getItem("panaderia_username");
+      if (!username && window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
+
+      const sidebar = document.getElementById("mobile-sidebar");
+      const overlay = document.getElementById("mobile-overlay");
+      const openButton = document.getElementById("mobile-open");
+
+      const openMenu = () => {
+        sidebar?.classList.add("open");
+        overlay?.classList.add("open");
+      };
+
+      const closeMenu = () => {
+        sidebar?.classList.remove("open");
+        overlay?.classList.remove("open");
+      };
+
+      openButton?.addEventListener("click", openMenu);
+      overlay?.addEventListener("click", closeMenu);
+
+      document.querySelectorAll(".mobile-sidebar a").forEach((link) => {
+        link.addEventListener("click", closeMenu);
+      });
+
+      const logoutButton = document.getElementById("logout-btn");
+      logoutButton?.addEventListener("click", () => {
+        window.localStorage.removeItem("panaderia_username");
+        window.location.replace("/login");
+      });
+
+      const normalizePath = (path) => {
+        if (!path || path === "/") return "/inicio";
+        const noTrailing =
+          path.endsWith("/") && path !== "/" ? path.slice(0, -1) : path;
+        return noTrailing;
+      };
+
+      const syncActiveNav = () => {
+        const current = normalizePath(window.location.pathname);
+        document.querySelectorAll("a[data-nav-link]").forEach((link) => {
+          if (!(link instanceof HTMLAnchorElement)) return;
+          const href = normalizePath(link.getAttribute("href") || "");
+          link.classList.toggle("active", href === current);
+        });
+      };
+
+      syncActiveNav();
+      document.addEventListener("astro:page-load", syncActiveNav);
+    </script>
+  </body>
+</html>
