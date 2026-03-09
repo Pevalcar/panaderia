@@ -1,11 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  PUBLIC_SUPABASE_ANON_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "astro:env/client";
 
 const supabaseUrl =
-  import.meta.env.PUBLIC_SUPABASE_URL ||
-  import.meta.env.EXPO_PUBLIC_SUPABASE_URL;
+  PUBLIC_SUPABASE_URL || import.meta.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey =
-  import.meta.env.PUBLIC_SUPABASE_ANON_KEY ||
-  import.meta.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  PUBLIC_SUPABASE_ANON_KEY || import.meta.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
